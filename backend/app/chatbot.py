@@ -43,13 +43,11 @@ def get_response(query: str):
         result = json.loads(ai_content)
         category = result.get("category", "").upper()
         subject = result.get("subject", "")
-
 	handlers = {
             "PURCHASE": (get_purchase_order_status, "Purchase Order Found: {subject} is {status}"),
             "SALES": (get_sales_order_status, "Sales Order Found: {subject} is {status}"),
             "EMPLOYEE": (get_employee_status, "Employee Check: {subject} is currently {status}")
         }
-
         if category in handlers:
             fetch_func, template = handlers[category]
             status = fetch_func(subject)
