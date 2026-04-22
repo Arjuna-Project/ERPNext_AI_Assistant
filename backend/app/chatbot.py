@@ -9,7 +9,7 @@ from app.erp_api import (
 )
 
 def get_response(query: str):
-    url = os.getenv("url")
+    url = os.getenv("LLM_API_URL")
     api_key = os.getenv("OPENROUTER_API_KEY")
 
     if not url or not api_key:
