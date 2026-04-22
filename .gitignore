@@ -1,0 +1,10 @@
+# Ignore the Python virtual environment
+backend/venv/
+__pycache__/
+*.pyc
+
+# Ignore secret API keys (Critical for security!)
+backend/.env
+
+# Ignore system files
+.DS_Store
