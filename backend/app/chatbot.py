@@ -2,6 +2,7 @@ import re
 import os
 import json
 import requests
+from fastapi import HTTPException
 from app.erp_api import (
     get_sales_order_status,
     get_employee_status,
@@ -9,10 +10,10 @@ from app.erp_api import (
 )
 
 def get_response(query: str):
-    url = "https://openrouter.ai/api/v1/chat/completions"
+    url = os.getenv("url")
     api_key = os.getenv("OPENROUTER_API_KEY")
 
-    # The "Few-Shot" prompt gives the AI clear examples of your ID formats
+    # The AI prompt for the queries including the example pucharse and sales ID.
     system_prompt = """
     You are an ERP Data Extractor.
     Your task is to extract the Category (SALES, PURCHASE, or EMPLOYEE) and the EXACT ID or Name.
@@ -38,26 +39,23 @@ def get_response(query: str):
     try:
         response = requests.post(url, headers=headers, json=payload)
         res_data = response.json()
-        # Extract and parse the content
         ai_content = res_data['choices'][0]['message']['content'].strip()
-        print(f"DEBUG AI RESULT: {ai_content}") # Watch this in your terminal
-
         result = json.loads(ai_content)
         category = result.get("category", "").upper()
         subject = result.get("subject", "")
 
-        # Routing to your ERP functions
-        if category == "PURCHASE":
-            status = get_purchase_order_status(subject)
-            return f"Purchase Order Found: {subject} is {status}"
-        elif category == "SALES":
-            status = get_sales_order_status(subject)
-            return f"Sales Order Found: {subject} is {status}"
-        elif category == "EMPLOYEE":
-            status = get_employee_status(subject)
-            return f"Employee Check: {subject} is currently {status}"
+	handlers = {
+            "PURCHASE": (get_purchase_order_status, "Purchase Order Found: {subject} is {status}"),
+            "SALES": (get_sales_order_status, "Sales Order Found: {subject} is {status}"),
+            "EMPLOYEE": (get_employee_status, "Employee Check: {subject} is currently {status}")
+        }
+
+        if category in handlers:
+            fetch_func, template = handlers[category]
+            status = fetch_func(subject)
+            return template.format(subject=subject, status=status)
 
     except Exception as e:
-        return f"System Error: {str(e)}"
+        raise HTTPException(status_code=500, detail=f"System Error: {str(e)}")
 
     return "I couldn't identify the specific ID. Please provide the full ID (e.g., PUR-ORD-2026-00006)."
