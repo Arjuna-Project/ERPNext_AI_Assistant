@@ -39,7 +39,7 @@ Before building the chatbot, you need a local instance of ERPNext running. The f
    ```bash
    sudo nano /etc/mysql/mariadb.conf.d/50-server.cnf
    ```
-   *(Add the following block to the bottom of the file and save)*
+   *Optional If any error occurs - (Add the following block to the bottom of the file and save)*
    ```ini
    [mysqld]
    character-set-client-handshake = FALSE
