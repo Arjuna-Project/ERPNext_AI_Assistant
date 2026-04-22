@@ -40,7 +40,6 @@ def get_response(query: str):
     try:
         response = requests.post(url, headers=headers, json=payload, timeout=10)
 
-        # ✅ Check API success
         response.raise_for_status()
 
         res_data = response.json()
@@ -52,7 +51,6 @@ def get_response(query: str):
         ai_content = res_data['choices'][0]['message']['content'].strip()
         print("AI RAW:", ai_content)
 
-        # ✅ Safe JSON parsing
         try:
             result = json.loads(ai_content)
         except json.JSONDecodeError:
@@ -75,7 +73,6 @@ def get_response(query: str):
 
         fetch_func, template = handlers[category]
 
-        # ✅ Protect ERP call
         try:
             status = fetch_func(subject)
         except Exception as e:
