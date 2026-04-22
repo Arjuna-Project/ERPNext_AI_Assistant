@@ -28,7 +28,7 @@ def get_purchase_order_status(order_id):
 
 def get_employee_status(name):
     """Searches for an employee by name and returns their status"""
-    params = {"filters": json.dumps([["employee_name", "like", f"%{name}%"]])}
+    params = {"filters": json.dumps([["first_name", "like", f"%{name}%"]])}
     url = f"{BASE_URL}/Employee"
     try:
         res = requests.get(url, headers=headers, params=params, timeout=5)

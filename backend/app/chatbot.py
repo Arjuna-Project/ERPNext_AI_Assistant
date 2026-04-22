@@ -1,3 +1,4 @@
+import re
 import os
 import json
 import requests
@@ -17,14 +18,9 @@ def get_response(query: str):
 
     system_prompt = """
     You are an ERP Data Extractor.
-    Your task is to extract the Category (SALES, PURCHASE, or EMPLOYEE) and the EXACT ID or Name.
-
-    Examples:
-    - Query: 'Status of PUR-ORD-2026-00006' -> {"category": "PURCHASE", "subject": "PUR-ORD-2026-00006"}
-    - Query: 'What about SAL-ORD-2026-00001' -> {"category": "SALES", "subject": "SAL-ORD-2026-00001"}
-    - Query: 'Is Arjun active?' -> {"category": "EMPLOYEE", "subject": "Arjun"}
-
-    Return ONLY JSON. No conversation.
+    Extract Category (SALES, PURCHASE, EMPLOYEE) and subject.
+    Return ONLY JSON like:
+    {"category": "SALES", "subject": "SAL-ORD-2026-00001"}
     """
 
     payload = {
@@ -43,57 +39,57 @@ def get_response(query: str):
 
     try:
         response = requests.post(url, headers=headers, json=payload, timeout=10)
+
+        # ✅ Check API success
         response.raise_for_status()
 
         res_data = response.json()
 
         if "choices" not in res_data:
-            raise HTTPException(status_code=500, detail="Invalid AI response")
+            print("INVALID AI RESPONSE:", res_data)
+            return "AI response error"
 
         ai_content = res_data['choices'][0]['message']['content'].strip()
+        print("AI RAW:", ai_content)
 
+        # ✅ Safe JSON parsing
         try:
             result = json.loads(ai_content)
         except json.JSONDecodeError:
-            raise HTTPException(status_code=500, detail="Invalid JSON from AI")
+            return "Could not understand the query."
 
         category = result.get("category", "").upper()
         subject = result.get("subject", "")
 
         if not category or not subject:
-            return "Please provide a valid query with ID or name."
+            return "Please provide a valid query."
 
         handlers = {
-            "PURCHASE": (
-                get_purchase_order_status,
-                "Purchase Order {subject} is {status}"
-            ),
-            "SALES": (
-                get_sales_order_status,
-                "Sales Order {subject} is {status}"
-            ),
-            "EMPLOYEE": (
-                get_employee_status,
-                "Employee {subject} is {status}"
-            )
+            "PURCHASE": (get_purchase_order_status, "Purchase Order {subject} is {status}"),
+            "SALES": (get_sales_order_status, "Sales Order {subject} is {status}"),
+            "EMPLOYEE": (get_employee_status, "Employee {subject} is {status}")
         }
 
-        if category in handlers:
-            fetch_func, template = handlers[category]
+        if category not in handlers:
+            return "Unknown request type."
 
-            try:
-                status = fetch_func(subject)
-                return template.format(subject=subject, status=status)
-            except Exception:
-                raise HTTPException(status_code=500, detail="Error fetching ERP data")
+        fetch_func, template = handlers[category]
 
-        return "Unknown request type. Please specify Sales Order, Purchase Order, or Employee."
+        # ✅ Protect ERP call
+        try:
+            status = fetch_func(subject)
+        except Exception as e:
+            print("ERP ERROR:", str(e))
+            return f"Could not fetch data for {subject}"
+
+        return template.format(subject=subject, status=status)
 
     except requests.exceptions.Timeout:
         raise HTTPException(status_code=504, detail="AI service timeout")
 
     except requests.exceptions.RequestException as e:
-        raise HTTPException(status_code=500, detail=f"API request failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"API error: {str(e)}")
 
     except Exception as e:
+        print("FINAL ERROR:", str(e))
         raise HTTPException(status_code=500, detail=f"System Error: {str(e)}")
